@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OBSTI-RABBIT: La evolución del conocimiento</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@500;700&display=swap');
+
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+            font-family: 'Quicksand', sans-serif;
+        }
+
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Glassmorphism for HUD */
+        .hud-glass {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        #gameCanvas {
+            display: block;
+            touch-action: none;
+            background: #38bdf8;
+        }
+
+        /* Touch Controls */
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.45);
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0f172a;
+            font-weight: bold;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            transition: transform 0.1s, background-color 0.1s;
+        }
+        .touch-btn:active {
+            transform: scale(0.92);
+            background: rgba(244, 63, 94, 0.7);
+            color: white;
+        }
+
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-bounce-subtle {
+            animation: bounce-subtle 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.9); }
+        }
+        .glow-gold {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none">
+
+    <!-- TOP HUD BAR -->
+    <div class="absolute top-3 left-3 right-3 z-10 flex flex-wrap justify-between items-center gap-2 pointer-events-none">
+        
+        <!-- Player Stage & Progression Tracker -->
+        <div class="hud-glass rounded-2xl px-4 py-2 flex items-center gap-3 shadow-xl pointer-events-auto">
+            <div id="hudAvatar" class="w-12 h-12 rounded-full bg-pink-100 border-2 border-pink-400 flex items-center justify-center text-2xl font-game shadow-inner">
+                🔮
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="hudStageTitle" class="font-game text-rose-600 text-base sm:text-lg">Nivel 1: La Bolita</span>
+                    <span id="hudBadge" class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-full font-bold border border-amber-300">Principiante</span>
+                </div>
+                <!-- Required Padlock Quiz Counter -->
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs font-bold text-gray-600">Candado Actual:</span>
+                    <span id="hudLevelQuizCount" class="bg-rose-500 text-white font-game text-xs px-2 py-0.5 rounded-full">0/2 Respuestas</span>
+                    <span id="hudLockStatus" class="bg-amber-500 text-white font-bold text-xs px-2 py-0.5 rounded-full">🔒 Bloqueado</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Stats -->
+        <div class="flex gap-2 pointer-events-auto">
+            <div class="hud-glass rounded-2xl px-3.5 py-2 flex items-center gap-2 shadow-xl">
+                <span class="text-2xl">⭐</span>
+                <div>
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Puntos</div>
+                    <div id="hudPoints" class="font-game text-lg text-amber-600">0</div>
+                </div>
+            </div>
+            <div class="hud-glass rounded-2xl px-3.5 py-2 flex items-center gap-2 shadow-xl">
+                <span class="text-2xl">📜</span>
+                <div>
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Títulos</div>
+                    <div id="hudCertificates" class="font-game text-lg text-emerald-600">0/4</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2 pointer-events-auto">
+            <button onclick="openWardrobeModal()" class="hud-glass hover:bg-white text-gray-800 font-bold px-3 py-2 rounded-xl shadow flex items-center gap-1.5 transition active:scale-95">
+                <span>🥼</span>
+                <span class="hidden sm:inline text-xs font-bold">Armario</span>
+            </button>
+            <button onclick="openClinicModal()" class="hud-glass hover:bg-white text-gray-800 font-bold px-3 py-2 rounded-xl shadow flex items-center gap-1.5 transition active:scale-95">
+                <span>🏥</span>
+                <span class="hidden sm:inline text-xs font-bold">Mi Clínica</span>
+            </button>
+            <button onclick="toggleAudio()" id="audioBtn" class="hud-glass hover:bg-white text-gray-800 font-bold px-3 py-2 rounded-xl shadow flex items-center gap-1.5 transition active:scale-95">
+                <span id="audioIcon">🔊</span>
+                <span class="hidden sm:inline text-xs font-bold">Audio</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME CANVAS WORLD -->
+    <div class="relative flex-1 w-full h-full overflow-hidden">
+        <canvas id="gameCanvas" class="w-full h-full"></canvas>
+
+        <!-- Dynamic Interaction Prompt -->
+        <div id="interactionPrompt" class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 hud-glass px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-bounce-subtle pointer-events-none z-20 border-2 border-rose-400">
+            <span class="bg-rose-500 text-white font-game px-3 py-1 rounded-lg text-xs">[E] / Tocar</span>
+            <span id="promptText" class="font-bold text-gray-800 text-xs sm:text-sm">Presiona para abrir Candado de Evaluación</span>
+        </div>
+
+        <!-- Lock Warning Banner -->
+        <div id="lockWarning" class="hidden absolute top-20 left-1/2 -translate-x-1/2 bg-rose-600 text-white px-6 py-3 rounded-2xl shadow-2xl border-2 border-rose-300 font-bold text-xs sm:text-sm z-30 text-center animate-bounce">
+            🔒 ¡CANDADO BLOQUEADO! Responde correctamente las 2 preguntas de Anticoncepción/Salud Materna para avanzar de ambiente.
+        </div>
+    </div>
+
+    <!-- MOBILE TOUCH CONTROLS -->
+    <div class="absolute bottom-4 left-4 right-4 z-20 flex justify-between items-end pointer-events-none sm:hidden">
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="btnLeft" class="touch-btn w-14 h-14">◀</button>
+            <button id="btnRight" class="touch-btn w-14 h-14">▶</button>
+        </div>
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="btnInteract" class="touch-btn w-14 h-14 bg-amber-400/90 text-white border-amber-300">🔑</button>
+            <button id="btnJump" class="touch-btn w-16 h-16 bg-rose-500/90 text-white border-rose-300">▲</button>
+        </div>
+    </div>
+
+    <!-- MODAL: PADLOCK QUIZ -->
+    <div id="quizModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-4 border-amber-400 transform transition-all relative">
+            
+            <div class="flex justify-between items-center mb-4">
+                <span id="quizCategory" class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                    <span>🔒</span> Candado de Nivel
+                </span>
+                <span id="quizProgressBadge" class="text-xs text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                    Pregunta 1 de 2
+                </span>
+            </div>
+            
+            <h3 id="quizQuestion" class="text-base sm:text-lg font-bold text-gray-800 mb-5 leading-snug">
+                Pregunta del Candado obstétrico...
+            </h3>
+
+            <div id="quizOptions" class="space-y-3 mb-5"></div>
+
+            <div id="quizFeedback" class="hidden p-3 rounded-xl mb-4 font-bold text-center text-xs sm:text-sm"></div>
+
+            <div class="flex justify-between items-center border-t border-gray-100 pt-3">
+                <span class="text-[11px] text-gray-400 font-bold">Si respondes mal, el candado permanece cerrado.</span>
+                <button onclick="closeQuizModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-bold transition text-xs">
+                    Intentar Luego
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: DIPLOMA & ENVIRONMENT TRANSFORMATION -->
+    <div id="certificateModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/85 backdrop-blur-lg">
+        <div class="bg-amber-50 rounded-3xl max-w-xl w-full p-8 shadow-2xl border-8 border-amber-300 text-center relative overflow-hidden transform transition-all">
+            <div class="text-6xl mb-2 animate-bounce">🔓</div>
+            <h2 class="text-xs uppercase tracking-widest text-amber-800 font-bold mb-1">¡CANDADO DESBLOQUEADO Y NUEVO AMBIENTE!</h2>
+            <h1 id="certTitle" class="font-game text-2xl text-rose-600 mb-2">Título de Estudiante de Obstetricia</h1>
+            <p id="certDesc" class="text-gray-600 text-xs sm:text-sm mb-6 leading-relaxed">
+                Has demostrado el conocimiento necesario. El candado se ha abierto y has avanzado a un nuevo entorno de aprendizaje.
+            </p>
+
+            <div class="bg-white p-4 rounded-2xl border-2 border-amber-200 shadow-inner mb-6 flex justify-around items-center">
+                <div>
+                    <div class="text-[10px] text-gray-400 uppercase font-bold">Conejo Obstetra</div>
+                    <div class="font-game text-gray-800 text-base">Obsti-Rabbit</div>
+                </div>
+                <div class="h-8 w-0.5 bg-amber-200"></div>
+                <div>
+                    <div class="text-[10px] text-gray-400 uppercase font-bold">Nuevo Ambiente</div>
+                    <div id="certStageBadge" class="font-bold text-rose-500 text-sm">Universidad</div>
+                </div>
+            </div>
+
+            <button onclick="closeCertificateModal()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-game text-base sm:text-lg rounded-2xl shadow-lg transition transform active:scale-95">
+                ¡Explorar Nuevo Ambiente!
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: FINAL GAME VICTORY / MOTIVATIONAL CELEBRATION -->
+    <div id="victoryModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-xl">
+        <div class="bg-gradient-to-b from-amber-50 via-white to-rose-50 rounded-3xl max-w-2xl w-full p-8 shadow-2xl border-8 border-amber-400 text-center relative overflow-hidden glow-gold">
+            
+            <div class="text-7xl mb-3 animate-bounce">👑👑👑</div>
+            <span class="bg-rose-500 text-white font-game text-xs px-4 py-1.5 rounded-full uppercase tracking-wider inline-block mb-2">
+                ¡MÁXIMO LOGRO ALCANZADO!
+            </span>
+            <h1 class="font-game text-3xl sm:text-4xl text-rose-600 mb-4 tracking-wide">
+                ¡OBJETIVO FINALIZADO!
+            </h1>
+
+            <div class="bg-white/80 backdrop-blur p-5 rounded-2xl border-2 border-amber-200 text-gray-700 text-xs sm:text-sm mb-6 leading-relaxed shadow-sm text-justify sm:text-center">
+                <p class="mb-3 font-bold text-rose-700">
+                    "De una pequeña bolita curiosa a dueño y director de tu propia Clínica Obstétrica."
+                </p>
+                <p class="mb-2">
+                    ¡Felicidades, profesional ejemplar! Has completado con éxito la ruta de evolución del conocimiento en Obstetricia. Tu dedicación para aprender sobre <strong>anticoncepción, salud materna y bienestar en el embarazo</strong> salva vidas y construye un futuro lleno de esperanza para miles de familias.
+                </p>
+                <p class="font-bold text-emerald-700">
+                    NUNCA OLVIDES: El conocimiento con empatía y vocación de servicio transforma la salud maternal del mundo. ¡Sigue brillando con excelencia! ✨
+                </p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <div class="bg-amber-100 p-3 rounded-xl border border-amber-300">
+                    <div class="text-[10px] text-amber-800 font-bold uppercase">Puntaje Total</div>
+                    <div id="vicScore" class="font-game text-lg text-amber-600">0</div>
+                </div>
+                <div class="bg-emerald-100 p-3 rounded-xl border border-emerald-300">
+                    <div class="text-[10px] text-emerald-800 font-bold uppercase">Diplomas</div>
+                    <div id="vicCerts" class="font-game text-lg text-emerald-600">4/4</div>
+                </div>
+                <div class="bg-rose-100 p-3 rounded-xl border border-rose-300">
+                    <div class="text-[10px] text-rose-800 font-bold uppercase">Candados</div>
+                    <div class="font-game text-lg text-rose-600">100% ✓</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="closeVictoryModal()" class="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-game text-sm sm:text-base rounded-2xl shadow-lg transition active:scale-95">
+                    🏥 Explorar Mi Clínica
+                </button>
+                <button onclick="restartGame()" class="flex-1 py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-game text-sm sm:text-base rounded-2xl shadow-lg transition active:scale-95">
+                    🔄 Volver a Jugar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: WARDROBE -->
+    <div id="wardrobeModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-4 border-indigo-300">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-game text-xl text-indigo-700 flex items-center gap-2">
+                    <span>🥼</span> Armario & Uniformes
+                </h3>
+                <button onclick="closeWardrobeModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">Uniformes desbloqueados al superarse los candados de cada ambiente.</p>
+            <div class="space-y-3 max-h-80 overflow-y-auto pr-1" id="wardrobeList"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: CLINIC BUILDING -->
+    <div id="clinicModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border-4 border-emerald-300">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-game text-2xl text-emerald-700 flex items-center gap-2">
+                    <span>🏥</span> Mi Clínica Obstétrica
+                </h3>
+                <button onclick="closeClinicModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">Invierte los puntos ganados respondiendo preguntas para equipar tu clínica.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4" id="clinicRoomsList"></div>
+        </div>
+    </div>
+
+    <!-- GAME ENGINE CODE -->
+    <script>
+        /* --- NATIVE WEB AUDIO SYNTHESIZER ENGINE (BGM & SFX) --- */
+        let audioCtx = null;
+        let audioMuted = false;
+        let bgmInterval = null;
+        let bgmStep = 0;
+
+        // Retro Pentatonic BGM Scale Frequencies (C4, D4, E4, G4, A4, C5)
+        const BGM_NOTES = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+        const BGM_MELODY = [0, 2, 3, 4, 2, 0, 3, 5, 4, 2, 1, 3, 0, 2, 4, 5];
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                startBGM();
+            } else if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (audioMuted) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'jump') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(480, now + 0.12);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.12);
+
+            } else if (type === 'star') {
+                // Bright C-E-G-C Arpeggio
+                const freqs = [523.25, 659.25, 783.99, 1046.50];
+                freqs.forEach((f, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + idx * 0.05);
+                    gain.gain.setValueAtTime(0.2, now + idx * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.05 + 0.15);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.05); osc.stop(now + idx * 0.05 + 0.15);
+                });
+
+            } else if (type === 'correct') {
+                // Victorious Major Triad Chord
+                const chord = [523.25, 659.25, 783.99];
+                chord.forEach(f => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now); osc.stop(now + 0.4);
+                });
+
+            } else if (type === 'incorrect') {
+                // Dissonant Low Buzz
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(130, now);
+                osc.frequency.setValueAtTime(90, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.3);
+
+            } else if (type === 'lockAlert') {
+                // Alert Bell
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1174.66, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.25);
+
+            } else if (type === 'unlock') {
+                // Stage Fanfare
+                const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+                notes.forEach((f, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(f, now + idx * 0.07);
+                    gain.gain.setValueAtTime(0.18, now + idx * 0.07);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.07 + 0.2);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.07); osc.stop(now + idx * 0.07 + 0.2);
+                });
+
+            } else if (type === 'victory') {
+                // Grand Victory Theme
+                const vicNotes = [523.25, 523.25, 523.25, 659.25, 783.99, 1046.50];
+                vicNotes.forEach((f, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + idx * 0.12);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.35);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.12); osc.stop(now + idx * 0.12 + 0.35);
+                });
+
+            } else if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.05);
+            }
+        }
+
+        function startBGM() {
+            if (bgmInterval) return;
+            bgmInterval = setInterval(() => {
+                if (audioMuted || !audioCtx || gameState.gameCompleted) return;
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                const noteIdx = BGM_MELODY[bgmStep % BGM_MELODY.length];
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(BGM_NOTES[noteIdx], now);
+                
+                gain.gain.setValueAtTime(0.03, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.18);
+                bgmStep++;
+            }, 220);
+        }
+
+        function toggleAudio() {
+            initAudio();
+            audioMuted = !audioMuted;
+            document.getElementById('audioIcon').innerText = audioMuted ? '🔇' : '🔊';
+        }
+
+        /* --- STAGES & ENVIRONMENTS DATA --- */
+        const STAGES = [
+            { 
+                id: 1, 
+                name: 'La Bolita', 
+                title: 'Campus Universitario Exterior', 
+                avatar: '🔮', 
+                lockX: 880, 
+                envName: 'Parque de la Facultad',
+                skyTop: '#38bdf8', skyBottom: '#bae6fd',
+                groundColor: '#4ade80', dirtColor: '#92400e'
+            },
+            { 
+                id: 2, 
+                name: 'Estudiante de Obstetricia', 
+                title: 'Aulas e Interiores de la Universidad', 
+                avatar: '🐰', 
+                lockX: 1800, 
+                envName: 'Universidad de Salud Materna',
+                skyTop: '#fbcfe8', skyBottom: '#f472b6',
+                groundColor: '#f43f5e', dirtColor: '#881337'
+            },
+            { 
+                id: 3, 
+                name: 'Obstetra Profesional', 
+                title: 'Hospital & Centro Clínico', 
+                avatar: '🩺', 
+                lockX: 2750, 
+                envName: 'Centro Hospitalario Materno',
+                skyTop: '#a5f3fc', skyBottom: '#06b6d4',
+                groundColor: '#0284c7', dirtColor: '#0f172a'
+            },
+            { 
+                id: 4, 
+                name: 'Director de Clínica', 
+                title: 'Clínica Obstétrica de Lujo Propia', 
+                avatar: '👑', 
+                lockX: 3600, 
+                envName: 'Clínica Materna VIP',
+                skyTop: '#fde68a', skyBottom: '#f59e0b',
+                groundColor: '#d97706', dirtColor: '#78350f'
+            }
+        ];
+
+        /* --- EXCLUSIVELY NON-ANATOMY QUIZZES --- */
+        const PADLOCK_QUIZZES = {
+            1: [
+                { id: 'l1_q1', category: 'Anticonceptivos', question: '¿Cuál es el único método anticonceptivo que previene activamente las Infecciones de Transmisión Sexual (ITS)?', options: ['Condón o Preservativo de barrera', 'Pastillas anticonceptivas combinadas', 'Implante subdérmico de progestágeno', 'Dispositivo Intrauterino (DIU) de cobre'], correct: 0, explanation: 'El preservativo de barrera es el único método que protege contra las ITS además de prevenir gestaciones no planificadas.' },
+                { id: 'l1_q2', category: 'Planificación Familiar', question: '¿Cómo actúan principalmente los anticonceptivos hormonales orales combinados?', options: ['Inhibiendo la ovulación mediante regulación hormonal', 'Aumentando la temperatura corporal materna', 'Bloqueando las arterias uterinas', 'Provocando sangrado de alerta semanal'], correct: 0, explanation: 'Inhiben la ovulación mediante la supresión del eje hipotálamo-hipófisis-ovario.' }
+            ],
+            2: [
+                { id: 'l2_q1', category: 'Salud Materna', question: '¿Cuál es la frecuencia mínima de controles prenatales recomendada por la OMS para un embarazo de bajo riesgo?', options: ['Al menos 2 controles', 'Al menos 8 controles prenatales', 'Un control por mes solo al final', 'Solo en el momento del parto'], correct: 1, explanation: 'La OMS recomienda un modelo con un mínimo de 8 contactos prenatales para reducir la morbimortalidad perinatal.' },
+                { id: 'l2_q2', category: 'Fisiología Gestacional', question: '¿Entre qué semanas de gestación se considera que un embarazo ha llegado a término completo?', options: ['Entre las semanas 28 y 32', 'Entre las semanas 37 y 41', 'Entre las semanas 30 y 35', 'Entre las semanas 42 y 45'], correct: 1, explanation: 'El embarazo a término abarca desde la semana 37 hasta la semana 41 más 6 días.' }
+            ],
+            3: [
+                { id: 'l3_q1', category: 'Salud Materna & Urgencias', question: '¿Cuál de los siguientes síntomas se considera un signo de ALARMA crítico durante la gestación?', options: ['Sensación de cansancio leve por las tardes', 'Sangrado vaginal o pérdida repentina de líquido amniótico', 'Deseo frecuente de consumir frutas e hidratarse', 'Movimientos fetales suaves al descansar'], correct: 1, explanation: 'El sangrado vaginal o la pérdida de líquido amniótico son emergencias obstétricas inmediatas.' },
+                { id: 'l3_q2', category: 'Cuidados en el Embarazo', question: '¿Por qué se indica la suplementación con Ácido Fólico antes y durante las primeras semanas del embarazo?', options: ['Para prevenir defectos del tubo neural en el desarrollo fetal', 'Para acelerar el crecimiento de los dientes del bebé', 'Para cambiar el color de ojos del recién nacido', 'Para reducir la presión arterial del recién nacido'], correct: 0, explanation: 'El ácido fólico previene eficazmente defectos de cierre del tubo neural como la espina bífida.' }
+            ]
+        };
+
+        const WARDROBE_ITEMS = [
+            { id: 'u1', name: 'Esfera Vital Básica', reqStage: 1, unlocked: true, equipped: true },
+            { id: 'u2', name: 'Uniforme Universitario & Mochila', reqStage: 2, unlocked: false, equipped: false },
+            { id: 'u3', name: 'Bata Blanca Obstétrica & Estetoscopio', reqStage: 3, unlocked: false, equipped: false },
+            { id: 'u4', name: 'Traje Ejecutivo Director de Clínica', reqStage: 4, unlocked: false, equipped: false }
+        ];
+
+        const CLINIC_ROOMS = [
+            { id: 'r1', name: 'Consultorio de Planificación', icon: '📋', cost: 100, built: false, desc: 'Atención en métodos anticonceptivos.' },
+            { id: 'r2', name: 'Gabinete Ecografía 4D', icon: '🖥️', cost: 200, built: false, desc: 'Diagnóstico prenatal e imagen ultrasónica.' },
+            { id: 'r3', name: 'Sala de Parto Humanizado', icon: '🧸', cost: 350, built: false, desc: 'Espacio respetado y cómodo para el nacimiento.' },
+            { id: 'r4', name: 'Suite VIP Materna', icon: '🏥', cost: 500, built: false, desc: 'Hospitalización y cuidados intensivos maternos.' }
+        ];
+
+        let gameState = {
+            points: 0,
+            currentStageIdx: 0,
+            certificatesEarned: 0,
+            padlocksUnlocked: { 1: false, 2: false, 3: false },
+            padlockQuizStep: { 1: 0, 2: 0, 3: 0 },
+            gameCompleted: false
+        };
+
+        /* --- CANVAS & PHYSICS SETUP --- */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const keys = { left: false, right: false, up: false, interact: false };
+        window.addEventListener('keydown', (e) => {
+            initAudio();
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyW') keys.up = true;
+            if (e.code === 'KeyE' || e.code === 'Enter') {
+                if (!keys.interact) handleInteraction();
+                keys.interact = true;
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'ArrowUp' || e.code === 'Space' || e.code === 'KeyW') keys.up = false;
+            if (e.code === 'KeyE' || e.code === 'Enter') keys.interact = false;
+        });
+
+        const setupTouchBtn = (id, keyName) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                initAudio();
+                keys[keyName] = true; 
+                if (keyName === 'interact') handleInteraction(); 
+            });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+        };
+        setupTouchBtn('btnLeft', 'left');
+        setupTouchBtn('btnRight', 'right');
+        setupTouchBtn('btnJump', 'up');
+        setupTouchBtn('btnInteract', 'interact');
+
+        const WORLD_WIDTH = 3800;
+        const GROUND_Y = 520;
+
+        const player = {
+            x: 100, y: 300,
+            vx: 0, vy: 0,
+            width: 44, height: 44,
+            grounded: false, facingRight: true
+        };
+
+        const platforms = [
+            { x: 0, y: GROUND_Y, w: WORLD_WIDTH, h: 200, type: 'ground' },
+            { x: 260, y: 420, w: 140, h: 20 },
+            { x: 580, y: 350, w: 150, h: 20 },
+            { x: 1150, y: 410, w: 140, h: 20 },
+            { x: 1480, y: 330, w: 150, h: 20 },
+            { x: 2100, y: 410, w: 150, h: 20 },
+            { x: 2420, y: 320, w: 160, h: 20 },
+            { x: 3050, y: 410, w: 160, h: 20 },
+            { x: 3380, y: 320, w: 180, h: 20 }
+        ];
+
+        const stars = [];
+        for (let i = 180; i < WORLD_WIDTH - 200; i += 110) {
+            stars.push({ x: i, y: GROUND_Y - 40 - (Math.random() > 0.5 ? 90 : 0), collected: false, pulse: Math.random() * 6 });
+        }
+
+        let cameraX = 0;
+
+        /* --- GAME ENGINE LOGIC --- */
+        function updatePhysics() {
+            const accel = 0.85;
+            const maxSpeed = 6.5;
+            const friction = 0.82;
+
+            if (keys.left) { player.vx -= accel; player.facingRight = false; }
+            if (keys.right) { player.vx += accel; player.facingRight = true; }
+
+            player.vx *= friction;
+            if (Math.abs(player.vx) > maxSpeed) player.vx = Math.sign(player.vx) * maxSpeed;
+
+            player.x += player.vx;
+
+            // PADLOCK BARRIER COLLISION & GATEKEEPING
+            const activeStageNum = gameState.currentStageIdx + 1;
+            if (activeStageNum <= 3) {
+                const padlockX = STAGES[gameState.currentStageIdx].lockX;
+                const isUnlocked = gameState.padlocksUnlocked[activeStageNum];
+
+                if (!isUnlocked && player.x + player.width > padlockX - 20) {
+                    player.x = padlockX - 20 - player.width;
+                    player.vx = -3;
+                    showLockWarning();
+                    playSound('incorrect');
+                }
+            }
+
+            if (player.x < 10) player.x = 10;
+            if (player.x > WORLD_WIDTH - player.width - 10) player.x = WORLD_WIDTH - player.width - 10;
+
+            player.vy += 0.65;
+            player.y += player.vy;
+            player.grounded = false;
+
+            platforms.forEach(p => {
+                if (player.x + player.width > p.x && player.x < p.x + p.w &&
+                    player.y + player.height >= p.y && player.y + player.height <= p.y + p.h + player.vy) {
+                    if (player.vy > 0) {
+                        player.y = p.y - player.height;
+                        player.vy = 0;
+                        player.grounded = true;
+                    }
+                }
+            });
+
+            if (keys.up && player.grounded) {
+                player.vy = -13.5;
+                player.grounded = false;
+                playSound('jump');
+            }
+
+            stars.forEach(s => {
+                if (!s.collected) {
+                    const dist = Math.hypot((player.x + player.width/2) - s.x, (player.y + player.height/2) - s.y);
+                    if (dist < 30) {
+                        s.collected = true;
+                        gameState.points += 10;
+                        playSound('star');
+                        updateHUD();
+                    }
+                }
+            });
+
+            const targetCamX = player.x - canvas.width / 2 + player.width / 2;
+            cameraX += (targetCamX - cameraX) * 0.1;
+            cameraX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, cameraX));
+
+            checkInteractionPrompt();
+        }
+
+        let warningTimeout = null;
+        function showLockWarning() {
+            const warn = document.getElementById('lockWarning');
+            warn.classList.remove('hidden');
+            if (warningTimeout) clearTimeout(warningTimeout);
+            warningTimeout = setTimeout(() => warn.classList.add('hidden'), 2800);
+        }
+
+        function updateHUD() {
+            const stage = STAGES[gameState.currentStageIdx];
+            const activeStageNum = gameState.currentStageIdx + 1;
+
+            document.getElementById('hudStageTitle').innerText = `Nivel ${stage.id}: ${stage.name}`;
+            document.getElementById('hudBadge').innerText = stage.title;
+            document.getElementById('hudAvatar').innerText = stage.avatar;
+            document.getElementById('hudPoints').innerText = gameState.points;
+            document.getElementById('hudCertificates').innerText = `${gameState.certificatesEarned}/4`;
+
+            const quizBadge = document.getElementById('hudLevelQuizCount');
+            const statusBadge = document.getElementById('hudLockStatus');
+
+            if (activeStageNum <= 3) {
+                const step = gameState.padlockQuizStep[activeStageNum] || 0;
+                const unlocked = gameState.padlocksUnlocked[activeStageNum];
+
+                quizBadge.innerText = `${step}/2 Respuestas`;
+                if (unlocked) {
+                    statusBadge.innerText = '🔓 Desbloqueado';
+                    statusBadge.className = 'bg-emerald-500 text-white font-bold text-xs px-2 py-0.5 rounded-full';
+                } else {
+                    statusBadge.innerText = '🔒 Candado Activo';
+                    statusBadge.className = 'bg-amber-500 text-white font-bold text-xs px-2 py-0.5 rounded-full';
+                }
+            } else {
+                quizBadge.innerText = 'Objetivo Finalizado';
+                statusBadge.innerText = '👑 Clínica Propia';
+                statusBadge.className = 'bg-amber-500 text-white font-bold text-xs px-2 py-0.5 rounded-full';
+            }
+        }
+
+        /* --- INTERACTION & PADLOCK QUIZ --- */
+        let activePadlockLevel = null;
+
+        function checkInteractionPrompt() {
+            const pX = player.x + player.width / 2;
+            const activeStageNum = gameState.currentStageIdx + 1;
+            let nearLock = null;
+
+            if (activeStageNum <= 3) {
+                const padlockX = STAGES[gameState.currentStageIdx].lockX;
+                if (Math.abs(pX - padlockX) < 100 && !gameState.padlocksUnlocked[activeStageNum]) {
+                    nearLock = activeStageNum;
+                }
+            }
+
+            const promptEl = document.getElementById('interactionPrompt');
+            if (nearLock) {
+                activePadlockLevel = nearLock;
+                document.getElementById('promptText').innerText = `Abrir Candado de Evaluación Nivel ${nearLock}`;
+                promptEl.classList.remove('hidden');
+            } else {
+                activePadlockLevel = null;
+                promptEl.classList.add('hidden');
+            }
+        }
+
+        function handleInteraction() {
+            if (activePadlockLevel) {
+                playSound('lockAlert');
+                openPadlockQuizModal(activePadlockLevel);
+            }
+        }
+
+        function openPadlockQuizModal(lvl) {
+            const quizStep = gameState.padlockQuizStep[lvl] || 0;
+            const quizList = PADLOCK_QUIZZES[lvl];
+            
+            if (quizStep >= quizList.length) return;
+
+            const quiz = quizList[quizStep];
+            document.getElementById('quizCategory').innerText = `🔒 Candado Nivel ${lvl}: ${quiz.category}`;
+            document.getElementById('quizProgressBadge').innerText = `Pregunta ${quizStep + 1} de 2`;
+            document.getElementById('quizQuestion').innerText = quiz.question;
+
+            const optsContainer = document.getElementById('quizOptions');
+            optsContainer.innerHTML = '';
+            document.getElementById('quizFeedback').classList.add('hidden');
+
+            quiz.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-3.5 rounded-2xl border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition font-bold text-gray-700 text-xs sm:text-sm flex items-center justify-between';
+                btn.innerHTML = `<span>${opt}</span> <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-md">Opción ${idx + 1}</span>`;
+                btn.onclick = () => selectQuizOption(lvl, idx);
+                optsContainer.appendChild(btn);
+            });
+
+            document.getElementById('quizModal').classList.remove('hidden');
+            playSound('click');
+        }
+
+        function selectQuizOption(lvl, selectedIdx) {
+            const quizStep = gameState.padlockQuizStep[lvl] || 0;
+            const quiz = PADLOCK_QUIZZES[lvl][quizStep];
+            const feedbackEl = document.getElementById('quizFeedback');
+            feedbackEl.classList.remove('hidden');
+
+            if (selectedIdx === quiz.correct) {
+                playSound('correct');
+                feedbackEl.className = 'p-3 rounded-xl mb-4 font-bold text-center text-xs sm:text-sm bg-emerald-100 text-emerald-800 border border-emerald-300';
+                feedbackEl.innerText = '¡Correcto! ' + quiz.explanation;
+
+                setTimeout(() => {
+                    gameState.padlockQuizStep[lvl] = quizStep + 1;
+                    gameState.points += 50;
+
+                    if (gameState.padlockQuizStep[lvl] >= 2) {
+                        gameState.padlocksUnlocked[lvl] = true;
+                        gameState.currentStageIdx++;
+                        WARDROBE_ITEMS[gameState.currentStageIdx].unlocked = true;
+                        WARDROBE_ITEMS.forEach((u, idx) => u.equipped = (idx === gameState.currentStageIdx));
+                        gameState.certificatesEarned = gameState.currentStageIdx + 1;
+
+                        closeQuizModal();
+
+                        if (gameState.currentStageIdx === 3) {
+                            gameState.gameCompleted = true;
+                            playSound('victory');
+                            triggerVictoryModal();
+                        } else {
+                            playSound('unlock');
+                            showStageCertificate();
+                        }
+
+                        updateHUD();
+                    } else {
+                        openPadlockQuizModal(lvl);
+                    }
+                }, 1200);
+
+            } else {
+                playSound('incorrect');
+                feedbackEl.className = 'p-3 rounded-xl mb-4 font-bold text-center text-xs sm:text-sm bg-rose-100 text-rose-800 border border-rose-300';
+                feedbackEl.innerText = '🔒 Respuesta Incorrecta. El candado permanece cerrado. ¡Inténtalo de nuevo!';
+            }
+        }
+
+        function closeQuizModal() {
+            document.getElementById('quizModal').classList.add('hidden');
+        }
+
+        function showStageCertificate() {
+            const stage = STAGES[gameState.currentStageIdx];
+            document.getElementById('certTitle').innerText = `Reconocimiento: ${stage.name}`;
+            document.getElementById('certDesc').innerText = `¡Felicidades! Has respondido correctamente las preguntas sobre Anticonceptivos y Salud Materna. Se ha abierto el camino a: ${stage.envName}.`;
+            document.getElementById('certStageBadge').innerText = stage.envName;
+            document.getElementById('certificateModal').classList.remove('hidden');
+        }
+
+        function closeCertificateModal() {
+            document.getElementById('certificateModal').classList.add('hidden');
+        }
+
+        function triggerVictoryModal() {
+            document.getElementById('vicScore').innerText = gameState.points;
+            document.getElementById('vicCerts').innerText = `${gameState.certificatesEarned}/4`;
+            document.getElementById('victoryModal').classList.remove('hidden');
+        }
+
+        function closeVictoryModal() {
+            document.getElementById('victoryModal').classList.add('hidden');
+        }
+
+        function restartGame() {
+            gameState = {
+                points: 0,
+                currentStageIdx: 0,
+                certificatesEarned: 0,
+                padlocksUnlocked: { 1: false, 2: false, 3: false },
+                padlockQuizStep: { 1: 0, 2: 0, 3: 0 },
+                gameCompleted: false
+            };
+            player.x = 100; player.y = 300; player.vx = 0; player.vy = 0;
+            stars.forEach(s => s.collected = false);
+            WARDROBE_ITEMS.forEach((u, idx) => { u.unlocked = (idx === 0); u.equipped = (idx === 0); });
+            CLINIC_ROOMS.forEach(r => r.built = false);
+            closeVictoryModal();
+            updateHUD();
+        }
+
+        /* --- MODALS LOGIC --- */
+        function openWardrobeModal() {
+            const list = document.getElementById('wardrobeList');
+            list.innerHTML = '';
+            WARDROBE_ITEMS.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `p-3.5 rounded-2xl border-2 flex justify-between items-center ${item.equipped ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white'}`;
+                
+                let action = '';
+                if (!item.unlocked) {
+                    action = `<span class="text-xs bg-gray-200 text-gray-500 px-3 py-1.5 rounded-xl font-bold">Candado Nivel ${item.reqStage}</span>`;
+                } else if (item.equipped) {
+                    action = `<span class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-bold">Equipado</span>`;
+                } else {
+                    action = `<button onclick="equipUniform('${item.id}')" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-xl font-bold transition">Equipar</button>`;
+                }
+
+                div.innerHTML = `<div><div class="font-bold text-sm text-gray-800">${item.name}</div></div>${action}`;
+                list.appendChild(div);
+            });
+            document.getElementById('wardrobeModal').classList.remove('hidden');
+            playSound('click');
+        }
+
+        function equipUniform(id) {
+            WARDROBE_ITEMS.forEach(i => i.equipped = (i.id === id));
+            openWardrobeModal();
+        }
+
+        function closeWardrobeModal() {
+            document.getElementById('wardrobeModal').classList.add('hidden');
+        }
+
+        function openClinicModal() {
+            const list = document.getElementById('clinicRoomsList');
+            list.innerHTML = '';
+            CLINIC_ROOMS.forEach(r => {
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-2xl border-2 flex flex-col justify-between ${r.built ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`;
+                
+                let btn = r.built ? `<span class="text-xs bg-emerald-600 text-white font-bold px-3 py-1 rounded-lg text-center">Construido ✓</span>` :
+                    `<button onclick="buildClinicRoom('${r.id}')" class="w-full mt-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition">Construir (${r.cost} Pts)</button>`;
+
+                div.innerHTML = `<div><div class="flex items-center gap-2 mb-1"><span class="text-2xl">${r.icon}</span><span class="font-bold text-gray-800 text-xs sm:text-sm">${r.name}</span></div><p class="text-[11px] text-gray-500 mb-2">${r.desc}</p></div>${btn}`;
+                list.appendChild(div);
+            });
+            document.getElementById('clinicModal').classList.remove('hidden');
+            playSound('click');
+        }
+
+        function buildClinicRoom(id) {
+            const room = CLINIC_ROOMS.find(r => r.id === id);
+            if (room && !room.built) {
+                if (gameState.points >= room.cost) {
+                    gameState.points -= room.cost;
+                    room.built = true;
+                    playSound('unlock');
+                    updateHUD();
+                    openClinicModal();
+                } else {
+                    playSound('incorrect');
+                }
+            }
+        }
+
+        function closeClinicModal() {
+            document.getElementById('clinicModal').classList.add('hidden');
+        }
+
+        /* --- RENDERING ENGINE (DYNAMIC ENVIRONMENTS) --- */
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            drawDynamicEnvironments();
+
+            // Platforms
+            platforms.forEach(p => {
+                const st = STAGES[gameState.currentStageIdx];
+                if (p.type === 'ground') {
+                    ctx.fillStyle = st.groundColor;
+                    ctx.fillRect(p.x, p.y, p.w, 22);
+                    ctx.fillStyle = st.dirtColor;
+                    ctx.fillRect(p.x, p.y + 22, p.w, p.h - 22);
+                } else {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.roundRect(p.x, p.y, p.w, p.h, 8);
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = st.groundColor;
+                    ctx.stroke();
+                }
+            });
+
+            // Stars
+            const t = Date.now() * 0.005;
+            stars.forEach(s => {
+                if (!s.collected) drawStar(s.x, s.y + Math.sin(t + s.pulse) * 5, 11, '#fbbf24', '#d97706');
+            });
+
+            // Render Physical Padlock Barriers
+            STAGES.forEach((st, idx) => {
+                if (idx < 3) {
+                    const lockNum = idx + 1;
+                    const padlockX = st.lockX;
+                    const isUnlocked = gameState.padlocksUnlocked[lockNum];
+
+                    drawPadlockBarrier(padlockX, isUnlocked, lockNum);
+                }
+            });
+
+            // Player Render
+            drawPlayer();
+
+            ctx.restore();
+        }
+
+        function drawDynamicEnvironments() {
+            // Environment 1: Campus Outdoor (0 to 900)
+            const sky1 = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            sky1.addColorStop(0, '#38bdf8'); sky1.addColorStop(1, '#bae6fd');
+            ctx.fillStyle = sky1;
+            ctx.fillRect(0, 0, 900, GROUND_Y);
+
+            for (let x = 100; x < 800; x += 220) {
+                ctx.fillStyle = '#15803d';
+                ctx.beginPath(); ctx.arc(x, GROUND_Y - 70, 45, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(x - 8, GROUND_Y - 35, 16, 35);
+            }
+
+            // Environment 2: University Interior (900 to 1820)
+            const sky2 = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            sky2.addColorStop(0, '#fbcfe8'); sky2.addColorStop(1, '#f472b6');
+            ctx.fillStyle = sky2;
+            ctx.fillRect(900, 0, 920, GROUND_Y);
+
+            ctx.fillStyle = '#064e3b';
+            ctx.fillRect(1050, 180, 220, 110);
+            ctx.lineWidth = 4; ctx.strokeStyle = '#78350f'; ctx.strokeRect(1050, 180, 220, 110);
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px Quicksand';
+            ctx.fillText('SALUD MATERNA Y ANTICONCEPCIÓN', 1060, 210);
+
+            // Environment 3: Hospital & Clinical Center (1820 to 2780)
+            const sky3 = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            sky3.addColorStop(0, '#e0f2fe'); sky3.addColorStop(1, '#38bdf8');
+            ctx.fillStyle = sky3;
+            ctx.fillRect(1820, 0, 960, GROUND_Y);
+
+            for (let x = 1950; x < 2700; x += 300) {
+                ctx.fillStyle = '#0284c7'; ctx.fillRect(x, GROUND_Y - 80, 70, 50);
+                ctx.fillStyle = '#0f172a'; ctx.fillRect(x + 5, GROUND_Y - 75, 60, 40);
+                ctx.fillStyle = '#22c55e'; ctx.fillText('ECG ❤️', x + 15, GROUND_Y - 50);
+            }
+
+            // Environment 4: Luxury Clinic (2780 to 3800)
+            const sky4 = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            sky4.addColorStop(0, '#fef3c7'); sky4.addColorStop(1, '#f59e0b');
+            ctx.fillStyle = sky4;
+            ctx.fillRect(2780, 0, 1020, GROUND_Y);
+
+            for (let x = 2900; x < 3700; x += 250) {
+                ctx.fillStyle = '#fef3c7'; ctx.fillRect(x, 160, 60, 80);
+                ctx.lineWidth = 3; ctx.strokeStyle = '#b45309'; ctx.strokeRect(x, 160, 60, 80);
+                ctx.fillStyle = '#b45309'; ctx.fillText('📜 DIPLOMA', x + 5, 205);
+            }
+        }
+
+        function drawPadlockBarrier(x, unlocked, levelNum) {
+            ctx.save();
+            
+            ctx.fillStyle = unlocked ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.45)';
+            ctx.fillRect(x - 12, 0, 24, GROUND_Y);
+
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = unlocked ? '#10b981' : '#f43f5e';
+            ctx.setLineDash(unlocked ? [] : [10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(x, 0); ctx.lineTo(x, GROUND_Y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const py = GROUND_Y - 180;
+            ctx.fillStyle = unlocked ? '#10b981' : '#f59e0b';
+            ctx.beginPath();
+            ctx.roundRect(x - 25, py, 50, 45, 10);
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = unlocked ? '#10b981' : '#d97706';
+            ctx.beginPath();
+            ctx.arc(x, py - 5, 16, Math.PI, 0);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 22px Fredoka One';
+            ctx.textAlign = 'center';
+            ctx.fillText(unlocked ? '🔓' : '🔒', x, py + 30);
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = 'bold 12px Quicksand';
+            ctx.fillText(unlocked ? `CANDADO ${levelNum} ABIERTO ✓` : `CANDADO EVALUACIÓN ${levelNum}`, x, py - 30);
+
+            ctx.restore();
+        }
+
+        function drawPlayer() {
+            const px = player.x + player.width / 2;
+            const py = player.y + player.height / 2;
+            const stageIdx = gameState.currentStageIdx;
+
+            ctx.save();
+            ctx.translate(px, py);
+            if (!player.facingRight) ctx.scale(-1, 1);
+
+            if (stageIdx === 0) {
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+                ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(6, -4, 5, 0, Math.PI * 2); ctx.arc(14, -4, 5, 0, Math.PI * 2); ctx.fill();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath(); ctx.arc(7, -4, 2.5, 0, Math.PI * 2); ctx.arc(15, -4, 2.5, 0, Math.PI * 2); ctx.fill();
+            } else {
+                ctx.fillStyle = '#fbcfe8';
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 3;
+
+                ctx.beginPath(); ctx.ellipse(-6, -28, 6, 16, -0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(6, -28, 6, 16, 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = '#fce7f3';
+                ctx.beginPath(); ctx.arc(0, -6, 16, 0, Math.PI * 2); ctx.fill();
+
+                if (stageIdx === 1) ctx.fillStyle = '#3b82f6';
+                if (stageIdx === 2) ctx.fillStyle = '#10b981';
+                if (stageIdx === 3) ctx.fillStyle = '#d97706';
+
+                ctx.beginPath(); ctx.roundRect(-12, 6, 24, 20, 6); ctx.fill();
+
+                if (stageIdx >= 2) {
+                    ctx.strokeStyle = '#334155'; ctx.lineWidth = 2.5;
+                    ctx.beginPath(); ctx.arc(0, 10, 8, 0, Math.PI); ctx.stroke();
+                }
+
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(4, -8, 2.5, 0, Math.PI * 2);
+                ctx.arc(11, -8, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath(); ctx.arc(7, -4, 2, 0, Math.PI * 2); ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawStar(cx, cy, r, fill, stroke) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.fillStyle = fill;
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 5; i++) {
+                ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * r + cx, -Math.sin((18 + i * 72) * Math.PI / 180) * r + cy);
+                ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * (r / 2) + cx, -Math.sin((54 + i * 72) * Math.PI / 180) * (r / 2) + cy);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            updatePhysics();
+            drawScene();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            updateHUD();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
